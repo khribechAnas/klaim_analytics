@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { runApp } from "./app";
+import { startServer } from "./modules/core/http/server";
 
-runApp().catch(() => {
+startServer().catch(() => {
   process.exitCode = 1;
 });

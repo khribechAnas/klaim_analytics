@@ -1,18 +1,8 @@
-import { Collection, Document } from "mongodb";
+import { getClaimsCollection } from "../../core/db/mongodb";
 
-export async function getClaimsCountByStatus(claimsCollection: Collection<Document>) {
-  return claimsCollection
-    .aggregate([
-      { $group: { _id: "$status", count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ])
-    .toArray();
-}
+export async function getPendingClaimsByPerformanceLabelService(today: Date = new Date()) {
+  const claimsCollection = await getClaimsCollection();
 
-export async function getPendingClaimsByPerformanceLabel(
-  claimsCollection: Collection<Document>,
-  today: Date = new Date()
-) {
   return claimsCollection
     .aggregate([
       { $match: { status: "Pending" } },

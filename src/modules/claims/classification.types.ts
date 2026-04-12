@@ -15,8 +15,19 @@ export interface ClassificationResult {
 
 export interface ClaimDocument {
   [key: string]: unknown;
+  netAmount?: number;
+  settlementDate?: Date | string;
+  claimId?: string;
 }
 
 export interface ClassifiedClaim extends ClaimDocument {
   classificationResult: ClassificationResult;
+}
+
+export interface ClaimClassificationDocument {
+  claimId: string;
+  classifiedAt: string;
+  netAmount: number;
+  daysOverdue: number;
+  classification: ClassificationResult;
 }

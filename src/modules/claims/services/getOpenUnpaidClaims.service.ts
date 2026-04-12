@@ -5,6 +5,67 @@ interface GetOpenUnpaidClaimsParams {
   limit: number;
 }
 
+const openUnpaidClaimsFilter = {
+  $expr: {
+    $and: [
+      {
+        $lt: [
+          {
+            $round: [
+              { $ifNull: ["$collectionData.collected", 0] },
+              2
+            ]
+          },
+          {
+            $round: [
+              { $ifNull: ["$netAmount", 0] },
+              2
+            ]
+          }
+        ]
+      },
+      {
+        $lt: [
+          {
+            $round: [
+              { $ifNull: ["$collectionData.collectedOwner", 0] },
+              2
+            ]
+          },
+          {
+            $round: [
+              { $ifNull: ["$netAmount", 0] },
+              2
+            ]
+          }
+        ]
+      },
+      {
+        $lt: [
+          {
+            $round: [
+              { $ifNull: ["$firstRejectedAmount", 0] },
+              2
+            ]
+          },
+          {
+            $round: [
+              { $ifNull: ["$netAmount", 0] },
+              2
+            ]
+          }
+        ]
+      }
+    ]
+  }
+};
+
+export async function getAllOpenUnpaidClaimsService() {
+  const claimsCollection = await getClaimsCollection();
+
+  return claimsCollection.find(openUnpaidClaimsFilter).toArray();
+}
+
 export async function getOpenUnpaidClaimsService({
   page,
   limit
@@ -18,66 +79,12 @@ export async function getOpenUnpaidClaimsService({
   }
 
   const claimsCollection = await getClaimsCollection();
-  const filter = {
-    $expr: {
-      $and: [
-        {
-          $lt: [
-            {
-              $round: [
-                { $ifNull: ["$collectionData.collected", 0] },
-                2
-              ]
-            },
-            {
-              $round: [
-                { $ifNull: ["$netAmount", 0] },
-                2
-              ]
-            }
-          ]
-        },
-        {
-          $lt: [
-            {
-              $round: [
-                { $ifNull: ["$collectionData.collectedOwner", 0] },
-                2
-              ]
-            },
-            {
-              $round: [
-                { $ifNull: ["$netAmount", 0] },
-                2
-              ]
-            }
-          ]
-        },
-        {
-          $lt: [
-            {
-              $round: [
-                { $ifNull: ["$firstRejectedAmount", 0] },
-                2
-              ]
-            },
-            {
-              $round: [
-                { $ifNull: ["$netAmount", 0] },
-                2
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  };
   const skip = (page - 1) * limit;
 
   const [totalClaims, claims] = await Promise.all([
-    claimsCollection.countDocuments(filter),
+    claimsCollection.countDocuments(openUnpaidClaimsFilter),
     claimsCollection
-      .find(filter)
+      .find(openUnpaidClaimsFilter)
       .skip(skip)
       .limit(limit)
       .toArray()

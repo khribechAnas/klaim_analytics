@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { claimsRouter } from "../../claims/routes/claims.routes";
-import { dealsRouter } from "../../deals/routes/deals.routes";
 
 export function createApiRouter(): Router {
   const router = Router();
@@ -10,7 +9,6 @@ export function createApiRouter(): Router {
   });
 
   router.use("/claims", claimsRouter);
-  router.use("/deals", dealsRouter);
 
   return router;
 }

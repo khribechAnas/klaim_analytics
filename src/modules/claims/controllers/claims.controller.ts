@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
-import { ClassificationCode } from "../classification.types";
-import { classifyClaims } from "../services/classifyClaims.service";
 import {
+  buildClassificationSummary,
+  classifyClaims
+} from "../services/classifyClaims.service";
+import {
+  getAllOpenUnpaidClaimsService,
   getOpenUnpaidClaimsService
 } from "../services/getOpenUnpaidClaims.service";
 
@@ -50,22 +53,11 @@ export async function getClassifiedClaimsController(_req: Request, res: Response
       page,
       limit
     });
-    const classifiedClaims = classifyClaims(claims);
-    const summary: Record<ClassificationCode, { count: number; totalNetAmount: number }> = {
-      P1: { count: 0, totalNetAmount: 0 },
-      U1: { count: 0, totalNetAmount: 0 },
-      U2: { count: 0, totalNetAmount: 0 },
-      U3: { count: 0, totalNetAmount: 0 },
-      U4: { count: 0, totalNetAmount: 0 }
-    };
-
-    classifiedClaims.forEach((claim) => {
-      const code = claim.classificationResult.code;
-      const netAmount = typeof claim.netAmount === "number" ? claim.netAmount : 0;
-
-      summary[code].count += 1;
-      summary[code].totalNetAmount = Number((summary[code].totalNetAmount + netAmount).toFixed(2));
-    });
+    const [allClaims, classifiedClaims] = await Promise.all([
+      getAllOpenUnpaidClaimsService(),
+      Promise.resolve(classifyClaims(claims))
+    ]);
+    const globalSummary = buildClassificationSummary(classifyClaims(allClaims));
 
     res.json({
       totalClaims,
@@ -73,7 +65,7 @@ export async function getClassifiedClaimsController(_req: Request, res: Response
       limit,
       totalPages,
       claimsCount,
-      summary,
+      globalSummary,
       claims: classifiedClaims.map((claim) => ({
         claimId: typeof claim.claimId === "string" ? claim.claimId : "",
         netAmount: typeof claim.netAmount === "number" ? claim.netAmount : 0,

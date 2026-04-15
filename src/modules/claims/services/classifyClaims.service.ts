@@ -2,6 +2,7 @@ import { Collection } from "mongodb";
 import { getClaimsCollection } from "../../core/db/mongodb";
 import {
   ClaimClassificationDocument,
+  ClassificationCode,
   ClassifiedClaim,
   ClaimDocument
 } from "../classification.types";
@@ -14,6 +15,28 @@ export function classifyClaims(claims: ClaimDocument[]): ClassifiedClaim[] {
     ...claim,
     classificationResult: computeClassification(claim)
   }));
+}
+
+export function buildClassificationSummary(
+  classifiedClaims: ClassifiedClaim[]
+): Record<ClassificationCode, { count: number; totalNetAmount: number }> {
+  const summary: Record<ClassificationCode, { count: number; totalNetAmount: number }> = {
+    P1: { count: 0, totalNetAmount: 0 },
+    U1: { count: 0, totalNetAmount: 0 },
+    U2: { count: 0, totalNetAmount: 0 },
+    U3: { count: 0, totalNetAmount: 0 },
+    U4: { count: 0, totalNetAmount: 0 }
+  };
+
+  classifiedClaims.forEach((claim) => {
+    const code = claim.classificationResult.code;
+    const netAmount = typeof claim.netAmount === "number" ? claim.netAmount : 0;
+
+    summary[code].count += 1;
+    summary[code].totalNetAmount = Number((summary[code].totalNetAmount + netAmount).toFixed(2));
+  });
+
+  return summary;
 }
 
 async function getClaimClassificationsCollection(): Promise<Collection<ClaimClassificationDocument>> {

@@ -1,20 +1,55 @@
 import { CLASSIFICATION_RULES } from "./classification.constants";
 import { ClaimDocument, ClassificationCode, ClassificationResult } from "./classification.types";
 
-export function computeDaysOverdue(settlementDate: Date | undefined): number {
-  if (!settlementDate) {
+function getLatestExpectedPaymentDate(claim: ClaimDocument): Date | undefined {
+  const payments = claim.expectedCfs?.payment;
+
+  if (!Array.isArray(payments) || payments.length === 0) {
+    return undefined;
+  }
+
+  let maxTime: number | undefined;
+
+  payments.forEach((payment) => {
+    const dateValue = payment?.date;
+
+    if (!dateValue) {
+      return;
+    }
+
+    const parsedDate = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    const parsedTime = parsedDate.getTime();
+
+    if (Number.isNaN(parsedTime)) {
+      return;
+    }
+
+    if (maxTime === undefined || parsedTime > maxTime) {
+      maxTime = parsedTime;
+    }
+  });
+
+  if (maxTime === undefined) {
+    return undefined;
+  }
+
+  return new Date(maxTime);
+}
+
+export function computeDaysOverdue(dueDate: Date | undefined): number {
+  if (!dueDate) {
     return -1;
   }
 
-  const settlementTime = settlementDate.getTime();
+  const dueDateTime = dueDate.getTime();
 
-  if (Number.isNaN(settlementTime)) {
+  if (Number.isNaN(dueDateTime)) {
     return -1;
   }
 
   const today = new Date();
   const millisecondsPerDay = 1000 * 60 * 60 * 24;
-  const daysOverdue = Math.floor((today.getTime() - settlementTime) / millisecondsPerDay);
+  const daysOverdue = Math.floor((today.getTime() - dueDateTime) / millisecondsPerDay);
 
   if (daysOverdue < 0) {
     return 0;
@@ -48,14 +83,8 @@ function roundToTwoDecimals(value: number): number {
 }
 
 export function computeClassification(claim: ClaimDocument): ClassificationResult {
-  const settlementDateValue = claim.settlementDate;
-  const settlementDate =
-    settlementDateValue instanceof Date
-      ? settlementDateValue
-      : settlementDateValue
-        ? new Date(settlementDateValue)
-        : undefined;
-  const daysOverdue = computeDaysOverdue(settlementDate);
+  const dueDate = getLatestExpectedPaymentDate(claim);
+  const daysOverdue = computeDaysOverdue(dueDate);
   const code = assignClassificationCode(daysOverdue);
   const rule = CLASSIFICATION_RULES[code];
   const netAmount = typeof claim.netAmount === "number" ? claim.netAmount : 0;
@@ -64,7 +93,7 @@ export function computeClassification(claim: ClaimDocument): ClassificationResul
   const confident = daysOverdue !== -1;
   const note =
     daysOverdue === -1
-      ? "Settlement date is missing"
+      ? "Expected payment date is missing"
       : daysOverdue === 0
         ? "Not yet due"
         : `Overdue by ${daysOverdue} days`;

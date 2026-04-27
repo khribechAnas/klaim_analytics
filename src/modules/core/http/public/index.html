@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Receivables Classification Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <main class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Receivables Analytics</p>
+          <h1>Claims Classification Cockpit</h1>
+          <p class="sub">Track claim quality, prioritize risk, and drill down by class.</p>
+        </div>
+        <div class="hero-actions">
+          <button id="refreshBtn" class="btn">Refresh</button>
+          <span id="lastUpdated" class="muted"></span>
+        </div>
+      </header>
+
+      <section class="filters card reveal">
+        <div class="chips" id="classificationChips"></div>
+        <div class="controls">
+          <label>
+            Page Size
+            <select id="limitSelect">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
+          <input id="searchInput" type="search" placeholder="Search claimId, payerId, owner, insurer" />
+        </div>
+      </section>
+
+      <section class="kpis reveal" id="kpiGrid"></section>
+
+      <section class="insights reveal">
+        <article class="card chart-card">
+          <h2>Classification Mix</h2>
+          <div id="barChart" class="bars"></div>
+        </article>
+
+        <article class="card donut-card">
+          <h2>Risk Share</h2>
+          <div class="donut-wrap">
+            <svg viewBox="0 0 42 42" class="donut" aria-label="Risk share donut chart">
+              <circle class="donut-bg" cx="21" cy="21" r="15.915"></circle>
+              <circle id="riskArc" class="donut-risk" cx="21" cy="21" r="15.915"></circle>
+            </svg>
+            <div class="donut-meta">
+              <p id="riskRate" class="value">0%</p>
+              <p class="muted">U3 + U4 share</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="card table-card reveal">
+        <div class="table-head">
+          <h2>Claims</h2>
+          <span id="resultInfo" class="muted"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Claim ID</th>
+                <th>Class</th>
+                <th>Status</th>
+                <th>Days Overdue</th>
+                <th>Net Amount</th>
+                <th>Owner</th>
+                <th>Insurer</th>
+                <th>Encounter Date</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="claimsBody"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="prevBtn" class="btn ghost">Previous</button>
+          <span id="pageInfo" class="mono"></span>
+          <button id="nextBtn" class="btn ghost">Next</button>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="detailDialog">
+      <form method="dialog">
+        <div class="dialog-head">
+          <h3>Claim Document</h3>
+          <button class="btn ghost">Close</button>
+        </div>
+        <pre id="detailContent"></pre>
+      </form>
+    </dialog>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

@@ -17,6 +17,13 @@ export interface ClaimDocument {
   [key: string]: unknown;
   netAmount?: number;
   settlementDate?: Date | string;
+  expectedCfs?: {
+    payment?: Array<{
+      date?: Date | string;
+      amount?: number;
+    }>;
+    rejection?: unknown[];
+  };
   claimId?: string;
 }
 

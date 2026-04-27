@@ -1,12 +1,39 @@
 import { Request, Response } from "express";
 import {
-  buildClassificationSummary,
   classifyClaims
 } from "../services/classifyClaims.service";
 import {
-  getAllOpenUnpaidClaimsService,
+  getClassifiedOpenUnpaidClaimsService,
+  getPendingClaimsCountService,
   getOpenUnpaidClaimsService
 } from "../services/getOpenUnpaidClaims.service";
+import { ClassificationCode } from "../classification.types";
+
+const VALID_CLASSIFICATION_CODES: ClassificationCode[] = ["P1", "U1", "U2", "U3", "U4"];
+
+function parseClassificationCodesFilter(
+  classificationQuery: Request["query"]["classification"]
+): ClassificationCode[] {
+  const rawValues = Array.isArray(classificationQuery) ? classificationQuery : [classificationQuery];
+
+  const normalizedValues = rawValues
+    .filter((value): value is string => typeof value === "string")
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim().toUpperCase())
+    .filter((value) => value.length > 0);
+
+  const invalidValues = normalizedValues.filter(
+    (value) => !VALID_CLASSIFICATION_CODES.includes(value as ClassificationCode)
+  );
+
+  if (invalidValues.length > 0) {
+    throw new Error(
+      `Invalid classification filter value(s): ${invalidValues.join(", ")}. Allowed values: ${VALID_CLASSIFICATION_CODES.join(", ")}`
+    );
+  }
+
+  return [...new Set(normalizedValues)] as ClassificationCode[];
+}
 
 export async function getOpenUnpaidClaimsController(req: Request, res: Response) {
   try {
@@ -36,6 +63,7 @@ export async function getClassifiedClaimsController(_req: Request, res: Response
   try {
     const pageParam = _req.query.page;
     const limitParam = _req.query.limit;
+    const classificationQuery = _req.query.classification;
     const page = typeof pageParam === "string" ? parseInt(pageParam, 10) : 1;
     const limit = typeof limitParam === "string" ? parseInt(limitParam, 10) : 50;
 
@@ -49,15 +77,22 @@ export async function getClassifiedClaimsController(_req: Request, res: Response
       return;
     }
 
-    const { totalClaims, totalPages, claimsCount, claims } = await getOpenUnpaidClaimsService({
-      page,
-      limit
-    });
-    const [allClaims, classifiedClaims] = await Promise.all([
-      getAllOpenUnpaidClaimsService(),
-      Promise.resolve(classifyClaims(claims))
-    ]);
-    const globalSummary = buildClassificationSummary(classifyClaims(allClaims));
+    let classificationCodes: ClassificationCode[] = [];
+    try {
+      classificationCodes = parseClassificationCodesFilter(classificationQuery);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invalid classification filter";
+      res.status(400).json({ message });
+      return;
+    }
+
+    const { totalClaims, totalPages, claimsCount, claims, globalSummary } =
+      await getClassifiedOpenUnpaidClaimsService({
+        page,
+        limit,
+        classificationCodes
+      });
+    const classifiedClaims = classifyClaims(claims);
 
     res.json({
       totalClaims,
@@ -65,21 +100,34 @@ export async function getClassifiedClaimsController(_req: Request, res: Response
       limit,
       totalPages,
       claimsCount,
+      filters: {
+        classification: classificationCodes
+      },
       globalSummary,
-      claims: classifiedClaims.map((claim) => ({
-        claimId: typeof claim.claimId === "string" ? claim.claimId : "",
-        netAmount: typeof claim.netAmount === "number" ? claim.netAmount : 0,
-        settlementDate: claim.settlementDate ?? null,
-        classification: {
-          code: claim.classificationResult.code,
-          label: claim.classificationResult.label,
-          daysOverdue: claim.classificationResult.daysOverdue,
-          provisionAmount: claim.classificationResult.provisionAmount,
-          navHaircutAmount: claim.classificationResult.navHaircutAmount
-        }
-      }))
+      claims: classifiedClaims.map((claim) => {
+        const { classificationResult, ...claimData } = claim;
+        return {
+          ...claimData,
+          classification: {
+            code: classificationResult.code,
+            label: classificationResult.label,
+            daysOverdue: classificationResult.daysOverdue,
+            provisionAmount: classificationResult.provisionAmount,
+            navHaircutAmount: classificationResult.navHaircutAmount
+          }
+        };
+      })
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch classified claims.", error });
+  }
+}
+
+export async function getPendingClaimsCountController(_req: Request, res: Response) {
+  try {
+    const count = await getPendingClaimsCountService();
+    res.json({ status: "Pending", count });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch pending claims count.", error });
   }
 }

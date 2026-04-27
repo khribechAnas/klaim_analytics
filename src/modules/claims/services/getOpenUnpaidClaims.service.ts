@@ -18,7 +18,20 @@ interface ClassifiedClaimsWithSummaryResult {
 }
 
 const openUnpaidClaimsFilter = {
-  status: "Pending"
+  status: "Pending",
+  $expr: {
+    $and: [
+      {
+        $lt: [{ $ifNull: ["$collectionData.collected", 0] }, { $ifNull: ["$netAmount", 0] }]
+      },
+      {
+        $lt: [{ $ifNull: ["$collectionData.collectedOwner", 0] }, { $ifNull: ["$netAmount", 0] }]
+      },
+      {
+        $lt: [{ $ifNull: ["$firstRejectedAmount", 0] }, { $ifNull: ["$netAmount", 0] }]
+      }
+    ]
+  }
 };
 
 type ClassificationSummary = Record<ClassificationCode, { count: number; totalNetAmount: number }>;
